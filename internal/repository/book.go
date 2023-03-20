@@ -71,10 +71,10 @@ func (r *bookRepository) GetBookByID(ctx context.Context, bookID int) (*dto.Book
     	book.id,
     	book.title,
     	book.year,
-    	g.id,
-    	g.title,
     	a.id,
-    	a.Name
+    	a.Name,
+		g.id,
+    	g.title
     	FROM book
     	    INNER JOIN genre g ON g.id = book.genre_id
     	    INNER JOIN author a on a.id = book.author_id

@@ -7,9 +7,11 @@ import (
 )
 
 type Service struct {
-	bookService
-	userService
+	Book
+	User
 }
+
+//go:generate mockgen -source=service.go -destination=mocks/mock.go
 
 type Book interface {
 	GetAllBooks(ctx context.Context) ([]*dto.Book, error)
@@ -22,7 +24,7 @@ type User interface {
 
 func NewService(repo *repository.Repository) *Service {
 	return &Service{
-		bookService: *NewBookService(repo),
-		userService: *NewUserService(repo),
+		Book: NewBookService(repo),
+		User: NewUserService(repo),
 	}
 }

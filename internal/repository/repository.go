@@ -7,8 +7,8 @@ import (
 )
 
 type Repository struct {
-	bookRepository
-	userRepository
+	Book
+	User
 }
 
 type Book interface {
@@ -22,7 +22,7 @@ type User interface {
 
 func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{
-		bookRepository: *NewbookRepository(db),
-		userRepository: *NewUserRepository(db),
+		Book: NewbookRepository(db),
+		User: NewUserRepository(db),
 	}
 }
