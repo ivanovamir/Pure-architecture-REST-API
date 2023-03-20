@@ -11,8 +11,8 @@ type bookRepository struct {
 	db *sqlx.DB
 }
 
-func NewbookRepository(db *sqlx.DB) bookRepository {
-	return bookRepository{db: db}
+func NewbookRepository(db *sqlx.DB) *bookRepository {
+	return &bookRepository{db: db}
 }
 
 func (r *bookRepository) GetAllBooks(ctx context.Context) ([]*dto.Book, error) {
@@ -54,7 +54,9 @@ func (r *bookRepository) GetAllBooks(ctx context.Context) ([]*dto.Book, error) {
 		booksDTO = append(booksDTO, bookDTO)
 
 		if err := rows.Err(); err != nil {
-			return nil, err
+			if err.Error() != "sql: no rows in result set" {
+				return nil, err
+			}
 		}
 	}
 
@@ -91,7 +93,9 @@ func (r *bookRepository) GetBookByID(ctx context.Context, bookID int) (*dto.Book
 		&bookDTO.Genre.Id,
 		&bookDTO.Genre.Title,
 	); err != nil {
-		return nil, err
+		if err.Error() != "sql: no rows in result set" {
+			return nil, err
+		}
 	}
 
 	return bookDTO, nil

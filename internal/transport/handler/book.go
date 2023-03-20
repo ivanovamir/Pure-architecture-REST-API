@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ivanovamir/Pure-architecture-REST-API/internal/dto"
 	"github.com/ivanovamir/Pure-architecture-REST-API/pkg"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
@@ -25,12 +26,27 @@ func (h *httpHandler) GetAllBooks(w http.ResponseWriter, r *http.Request, params
 			return
 		}
 
-		body, err := json.Marshal(booksDTO)
+		body, err := json.Marshal(map[string][]*dto.Book{"data": booksDTO})
 
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write(pkg.ErrorHandler(err))
+			return
+		}
+
+		if len(booksDTO) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+
+			body, err = json.Marshal(map[string][]string{"data": []string{}})
+			if err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write(pkg.ErrorHandler(err))
+				return
+			}
+			w.Write(body)
 			return
 		}
 
@@ -59,12 +75,27 @@ func (h *httpHandler) GetBookByID(w http.ResponseWriter, r *http.Request, params
 		return
 	}
 
-	body, err := json.Marshal(bookDTO)
+	body, err := json.Marshal(map[string]*dto.Book{"data": bookDTO})
 
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write(pkg.ErrorHandler(err))
+		return
+	}
+
+	if bookDTO.Id == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		body, err = json.Marshal(map[string]struct{}{"data": struct{}{}})
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(pkg.ErrorHandler(err))
+			return
+		}
+		w.Write(body)
 		return
 	}
 

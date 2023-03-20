@@ -10,8 +10,8 @@ type bookService struct {
 	repo repository.Book
 }
 
-func NewBookService(repo repository.Book) bookService {
-	return bookService{repo: repo}
+func NewBookService(repo repository.Book) *bookService {
+	return &bookService{repo: repo}
 }
 
 func (s *bookService) GetAllBooks(ctx context.Context) ([]*dto.Book, error) {

@@ -8,6 +8,7 @@ import (
 
 type Repository struct {
 	bookRepository
+	userRepository
 }
 
 type Book interface {
@@ -15,8 +16,13 @@ type Book interface {
 	GetBookByID(ctx context.Context, bookID int) (*dto.Book, error)
 }
 
+type User interface {
+	GetAllUsers(ctx context.Context) ([]*dto.User, error)
+}
+
 func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{
-		bookRepository: NewbookRepository(db),
+		bookRepository: *NewbookRepository(db),
+		userRepository: *NewUserRepository(db),
 	}
 }

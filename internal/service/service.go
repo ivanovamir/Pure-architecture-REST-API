@@ -8,6 +8,7 @@ import (
 
 type Service struct {
 	bookService
+	userService
 }
 
 type Book interface {
@@ -15,8 +16,13 @@ type Book interface {
 	GetBookByID(ctx context.Context, bookID int) (*dto.Book, error)
 }
 
+type User interface {
+	GetAllUsers(ctx context.Context) ([]*dto.User, error)
+}
+
 func NewService(repo *repository.Repository) *Service {
 	return &Service{
-		bookService: NewBookService(repo),
+		bookService: *NewBookService(repo),
+		userService: *NewUserService(repo),
 	}
 }

@@ -9,6 +9,7 @@ import (
 const (
 	getAllBooks = "books"
 	getBookByID = "book"
+	getAllUsers = "users"
 )
 
 type httpHandler struct {
@@ -26,4 +27,6 @@ func NewHttpHandler(router *httprouter.Router, service *service.Service) *httpHa
 func (h *httpHandler) Router() {
 	h.router.GET(fmt.Sprintf("/%s", getAllBooks), h.GetAllBooks)
 	h.router.GET(fmt.Sprintf("/%s", getBookByID), h.GetBookByID)
+
+	h.router.GET(fmt.Sprintf("/%s", getAllUsers), h.GetAllUsers)
 }
