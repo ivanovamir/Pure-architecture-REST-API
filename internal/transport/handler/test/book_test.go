@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/dto"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/service"
@@ -14,6 +15,65 @@ import (
 	"strconv"
 	"testing"
 )
+
+func TestHandler_GetAllBooks(t *testing.T) {
+	type mockBehavior func(s *mock_service.MockBook)
+
+	testTable := []struct {
+		name                 string
+		mockBehavior         mockBehavior
+		expectedStatusCode   int
+		expectedResponseBody string
+	}{
+		{
+			name: "OK",
+			mockBehavior: func(s *mock_service.MockBook) {
+				s.EXPECT().GetAllBooks(context.Background()).Return([]*dto.Book{}, nil)
+			},
+			expectedStatusCode:   200,
+			expectedResponseBody: `{"data":[]}`,
+		},
+		{
+			name: "ERROR",
+			mockBehavior: func(s *mock_service.MockBook) {
+				s.EXPECT().GetAllBooks(context.Background()).Return([]*dto.Book{}, fmt.Errorf(""))
+			},
+			expectedStatusCode:   500,
+			expectedResponseBody: `{"error":""}`,
+		},
+	}
+
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			c := gomock.NewController(t)
+			defer c.Finish()
+
+			books := mock_service.NewMockBook(c)
+
+			testCase.mockBehavior(books)
+
+			service := &service.Service{
+				Book: books,
+			}
+
+			router := httprouter.New()
+
+			handler := handler.NewHttpHandler(router, service)
+			router.GET("/books", handler.GetAllBooks)
+
+			// Test request
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/books", nil)
+			// Perform Request
+			router.ServeHTTP(w, req)
+
+			// Assert
+			assert.Equal(t, testCase.expectedStatusCode, w.Code)
+			assert.Equal(t, testCase.expectedResponseBody, w.Body.String())
+
+		})
+	}
+}
 
 func TestHandler_GetBookByID(t *testing.T) {
 	type mockBehavior func(s *mock_service.MockBook, bookId int)
