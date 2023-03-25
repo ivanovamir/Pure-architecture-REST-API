@@ -32,7 +32,7 @@ func (r *bookRepository) GetAllBooks(ctx context.Context) ([]*dto.Book, error) {
     	     INNER JOIN genre g ON g.id = book.genre_id;`))
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s", errParsRows)
 	}
 
 	defer rows.Close()
@@ -48,16 +48,10 @@ func (r *bookRepository) GetAllBooks(ctx context.Context) ([]*dto.Book, error) {
 			&bookDTO.Genre.Id,
 			&bookDTO.Genre.Title,
 		); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%s", errScanRows)
 		}
 
 		booksDTO = append(booksDTO, bookDTO)
-
-		if err := rows.Err(); err != nil {
-			if err.Error() != "sql: no rows in result set" {
-				return nil, err
-			}
-		}
 	}
 
 	return booksDTO, nil
@@ -80,10 +74,6 @@ func (r *bookRepository) GetBookByID(ctx context.Context, bookID int) (*dto.Book
     	    INNER JOIN author a on a.id = book.author_id
     			WHERE book.id = %d LIMIT 1`, bookID))
 
-	if row.Err() != nil {
-		return nil, row.Err()
-	}
-
 	if err := row.Scan(
 		&bookDTO.Id,
 		&bookDTO.Title,
@@ -93,9 +83,7 @@ func (r *bookRepository) GetBookByID(ctx context.Context, bookID int) (*dto.Book
 		&bookDTO.Genre.Id,
 		&bookDTO.Genre.Title,
 	); err != nil {
-		if err.Error() != "sql: no rows in result set" {
-			return nil, err
-		}
+		return nil, fmt.Errorf("%s", errScanRow)
 	}
 
 	return bookDTO, nil

@@ -26,7 +26,7 @@ func TestHandler_GetAllBooks(t *testing.T) {
 		expectedResponseBody string
 	}{
 		{
-			name: "OK",
+			name: "OK empty result",
 			mockBehavior: func(s *mock_service.MockBook) {
 				s.EXPECT().GetAllBooks(context.Background()).Return([]*dto.Book{}, nil)
 			},
@@ -34,12 +34,20 @@ func TestHandler_GetAllBooks(t *testing.T) {
 			expectedResponseBody: `{"data":[]}`,
 		},
 		{
-			name: "ERROR",
+			name: "ERROR scanning rows",
 			mockBehavior: func(s *mock_service.MockBook) {
-				s.EXPECT().GetAllBooks(context.Background()).Return([]*dto.Book{}, fmt.Errorf(""))
+				s.EXPECT().GetAllBooks(context.Background()).Return(nil, fmt.Errorf("error occurred scanning rows"))
 			},
 			expectedStatusCode:   500,
-			expectedResponseBody: `{"error":""}`,
+			expectedResponseBody: `{"error":"error occurred scanning rows"}`,
+		},
+		{
+			name: "ERROR parsing rows",
+			mockBehavior: func(s *mock_service.MockBook) {
+				s.EXPECT().GetAllBooks(context.Background()).Return([]*dto.Book{}, fmt.Errorf("error occurred parsing rows"))
+			},
+			expectedStatusCode:   500,
+			expectedResponseBody: `{"error":"error occurred parsing rows"}`,
 		},
 	}
 
@@ -86,7 +94,7 @@ func TestHandler_GetBookByID(t *testing.T) {
 		expectedResponseBody string
 	}{
 		{
-			name:        "OK",
+			name:        "OK good result #1",
 			inputParams: 1,
 			mockBehavior: func(s *mock_service.MockBook, bookId int) {
 				s.EXPECT().GetBookByID(context.Background(), bookId).Return(&dto.Book{
@@ -107,7 +115,7 @@ func TestHandler_GetBookByID(t *testing.T) {
 			expectedResponseBody: `{"data":{"id":"1","title":"Евгений Онегин","year":"1860","author":{"id":"1","name":"Пушкин А.C."},"genre":{"id":"2","title":"Поэма"}}}`,
 		},
 		{
-			name:        "OK",
+			name:        "OK good result #2",
 			inputParams: 2,
 			mockBehavior: func(s *mock_service.MockBook, bookId int) {
 				s.EXPECT().GetBookByID(context.Background(), bookId).Return(&dto.Book{
@@ -128,7 +136,7 @@ func TestHandler_GetBookByID(t *testing.T) {
 			expectedResponseBody: `{"data":{"id":"2","title":"Руслан Людмила","year":"1875","author":{"id":"1","name":"Пушкин А.C."},"genre":{"id":"1","title":"Роман"}}}`,
 		},
 		{
-			name:        "OK",
+			name:        "OK good result #3",
 			inputParams: 3,
 			mockBehavior: func(s *mock_service.MockBook, bookId int) {
 				s.EXPECT().GetBookByID(context.Background(), bookId).Return(&dto.Book{
@@ -149,7 +157,7 @@ func TestHandler_GetBookByID(t *testing.T) {
 			expectedResponseBody: `{"data":{"id":"3","title":"Преступление и наказание","year":"1855","author":{"id":"3","name":"Достоевский Ф.М."},"genre":{"id":"2","title":"Поэма"}}}`,
 		},
 		{
-			name:        "OK",
+			name:        "OK empty result",
 			inputParams: 0,
 			mockBehavior: func(s *mock_service.MockBook, bookId int) {
 				s.EXPECT().GetBookByID(context.Background(), bookId).Return(&dto.Book{
@@ -162,6 +170,15 @@ func TestHandler_GetBookByID(t *testing.T) {
 			},
 			expectedStatusCode:   200,
 			expectedResponseBody: `{"data":{}}`,
+		},
+		{
+			name:        "ERROR scanning rows",
+			inputParams: 0,
+			mockBehavior: func(s *mock_service.MockBook, bookId int) {
+				s.EXPECT().GetBookByID(context.Background(), bookId).Return(nil, fmt.Errorf("%s", "error occurred scanning rows"))
+			},
+			expectedStatusCode:   500,
+			expectedResponseBody: `{"error":"error occurred scanning rows"}`,
 		},
 	}
 
@@ -189,6 +206,7 @@ func TestHandler_GetBookByID(t *testing.T) {
 			query := req.URL.Query()
 			query.Add("book_id", strconv.Itoa(testCase.inputParams))
 			req.URL.RawQuery = query.Encode()
+
 			// Perform Request
 			router.ServeHTTP(w, req)
 

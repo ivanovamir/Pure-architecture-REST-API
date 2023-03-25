@@ -20,6 +20,8 @@ type Book interface {
 
 type User interface {
 	GetAllUsers(ctx context.Context) ([]*dto.User, error)
+	GetUserByID(ctx context.Context, userId int) (*dto.User, error)
+	TakeBook(ctx context.Context, bookId, userId int) error
 }
 
 func NewService(repo *repository.Repository) *Service {

@@ -6,10 +6,18 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// Routes
 const (
-	getAllBooks = "books"
-	getBookByID = "book"
-	getAllUsers = "users"
+	getAllBooks      = "books"
+	getBookByID      = "book"
+	getAllUsers      = "users"
+	getUserByID      = "user"
+	takeBookByUserID = "take_book"
+)
+
+// Errors
+const (
+	errParsTypes = "error occurred parsing types"
 )
 
 type httpHandler struct {
@@ -29,4 +37,6 @@ func (h *httpHandler) Router() {
 	h.router.GET(fmt.Sprintf("/%s", getBookByID), h.GetBookByID)
 
 	h.router.GET(fmt.Sprintf("/%s", getAllUsers), h.GetAllUsers)
+	h.router.GET(fmt.Sprintf("/%s", getUserByID), h.GetUserByID)
+	h.router.POST(fmt.Sprintf("/%s", takeBookByUserID), h.TakeBook)
 }
