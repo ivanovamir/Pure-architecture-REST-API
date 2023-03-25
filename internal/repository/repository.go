@@ -26,6 +26,7 @@ type Book interface {
 type User interface {
 	GetAllUsers(ctx context.Context) ([]*dto.User, error)
 	GetUserByID(ctx context.Context, userId int) (*dto.User, error)
+	CheckUserBook(ctx context.Context, bookId, userId int) (bool, error)
 	TakeBook(ctx context.Context, bookId, userId int) error
 }
 

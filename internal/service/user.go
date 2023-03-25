@@ -28,5 +28,10 @@ func (s *userService) TakeBook(ctx context.Context, bookId, userId int) error {
 		return fmt.Errorf("")
 	}
 
-	return s.repo.TakeBook(ctx, bookId, userId)
+	ok, err := s.repo.CheckUserBook(ctx, bookId, userId)
+
+	if !ok {
+		return s.repo.TakeBook(ctx, bookId, userId)
+	}
+	return err
 }

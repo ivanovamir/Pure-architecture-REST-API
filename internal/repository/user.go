@@ -101,6 +101,24 @@ func (r *userRepository) GetUserByID(ctx context.Context, userId int) (*dto.User
 
 func (r *userRepository) TakeBook(ctx context.Context, bookId, userId int) error {
 
+	result, err := r.db.ExecContext(ctx, fmt.Sprintf(`INSERT INTO user_book VALUES (%d,%d)`, userId, bookId))
+	if err != nil {
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+
+	if err != nil {
+		return err
+	}
+
+	if rows != 1 {
+		return err
+	}
+	return nil
+}
+
+func (r *userRepository) CheckUserBook(ctx context.Context, bookId, userId int) (bool, error) {
 	var userBook struct {
 		UserId int
 		BookId int
@@ -110,25 +128,8 @@ func (r *userRepository) TakeBook(ctx context.Context, bookId, userId int) error
 
 	if err := row.Scan(&userBook.UserId, &userBook.BookId); err != nil {
 		if err == sql.ErrNoRows {
-			result, err := r.db.ExecContext(ctx, fmt.Sprintf(`INSERT INTO user_book VALUES (%d,%d)`, userId, bookId))
-			if err != nil {
-				return err
-			}
-
-			rows, err := result.RowsAffected()
-
-			if err != nil {
-				return err
-			}
-
-			if rows != 1 {
-				return err
-			}
-			return nil
+			return false, nil
 		}
-		return fmt.Errorf("%s", errScanRow)
-	} else {
-		return fmt.Errorf("%s", errUserTookBook)
-
 	}
+	return true, fmt.Errorf("%s", errUserTookBook)
 }
