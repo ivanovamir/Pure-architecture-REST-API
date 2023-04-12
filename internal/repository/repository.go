@@ -28,6 +28,8 @@ type User interface {
 	GetUserByID(ctx context.Context, userId int) (*dto.User, error)
 	CheckUserBook(ctx context.Context, bookId, userId int) (bool, error)
 	TakeBook(ctx context.Context, bookId, userId int) error
+	RegisterUser(ctx context.Context, name string) (string, error)
+	WriteRefreshToken(ctx context.Context, refreshToken string, userId string) error
 }
 
 func NewRepository(db *sqlx.DB) *Repository {

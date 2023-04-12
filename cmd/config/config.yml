@@ -6,3 +6,6 @@
   "username": "amir"
   "db_name": "library"
   "ssl_mode": "disable"
+
+"token":
+  "ttl": "1m"

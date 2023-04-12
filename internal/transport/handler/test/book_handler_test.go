@@ -78,7 +78,6 @@ func TestHandler_GetAllBooks(t *testing.T) {
 			// Assert
 			assert.Equal(t, testCase.expectedStatusCode, w.Code)
 			assert.Equal(t, testCase.expectedResponseBody, w.Body.String())
-
 		})
 	}
 }

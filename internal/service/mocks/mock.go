@@ -102,3 +102,32 @@ func (mr *MockUserMockRecorder) GetAllUsers(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllUsers", reflect.TypeOf((*MockUser)(nil).GetAllUsers), ctx)
 }
+
+// GetUserByID mocks base method.
+func (m *MockUser) GetUserByID(ctx context.Context, userId int) (*dto.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserByID", ctx, userId)
+	ret0, _ := ret[0].(*dto.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserByID indicates an expected call of GetUserByID.
+func (mr *MockUserMockRecorder) GetUserByID(ctx, userId interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByID", reflect.TypeOf((*MockUser)(nil).GetUserByID), ctx, userId)
+}
+
+// TakeBook mocks base method.
+func (m *MockUser) TakeBook(ctx context.Context, bookId, userId int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TakeBook", ctx, bookId, userId)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// TakeBook indicates an expected call of TakeBook.
+func (mr *MockUserMockRecorder) TakeBook(ctx, bookId, userId interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TakeBook", reflect.TypeOf((*MockUser)(nil).TakeBook), ctx, bookId, userId)
+}

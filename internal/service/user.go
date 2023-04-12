@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/dto"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/repository"
+	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/token_manager"
 )
 
 type userService struct {
-	repo repository.User
+	repo         repository.User
+	tokenManager token_manager.TokenManager
 }
 
-func NewUserService(repo repository.User) *userService {
-	return &userService{repo: repo}
+func NewUserService(repo repository.User, tokenManager token_manager.TokenManager) *userService {
+	return &userService{repo: repo, tokenManager: tokenManager}
 }
 
 func (s *userService) GetAllUsers(ctx context.Context) ([]*dto.User, error) {
@@ -34,4 +36,33 @@ func (s *userService) TakeBook(ctx context.Context, bookId, userId int) error {
 		return s.repo.TakeBook(ctx, bookId, userId)
 	}
 	return err
+}
+
+func (s *userService) RegisterUser(ctx context.Context, name string) (*dto.SuccessRegister, error) {
+	userId, err := s.repo.RegisterUser(ctx, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	accessToken, err := s.tokenManager.NewJWT(userId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err := s.tokenManager.NewRefreshToken()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err = s.repo.WriteRefreshToken(ctx, refreshToken, userId); err != nil {
+		return nil, err
+	}
+
+	return &dto.SuccessRegister{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }

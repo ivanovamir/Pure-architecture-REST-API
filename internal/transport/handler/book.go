@@ -14,16 +14,16 @@ func (h *httpHandler) GetAllBooks(w http.ResponseWriter, r *http.Request, params
 	booksDTO, err := h.service.GetAllBooks(r.Context())
 
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(pkg.ErrorHandler(err))
 		return
 	}
 	body, err := json.Marshal(map[string][]*dto.Book{"data": booksDTO})
 
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(pkg.ErrorHandler(err))
 		return
 	}
@@ -34,8 +34,8 @@ func (h *httpHandler) GetAllBooks(w http.ResponseWriter, r *http.Request, params
 
 		body, err = json.Marshal(map[string][]string{"data": []string{}})
 		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(pkg.ErrorHandler(err))
 			return
 		}
@@ -54,16 +54,16 @@ func (h *httpHandler) GetBookByID(w http.ResponseWriter, r *http.Request, params
 	bookId, err := strconv.Atoi(r.URL.Query().Get("book_id"))
 
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(pkg.ErrorHandler(fmt.Errorf("%s", errParsTypes)))
 		return
 	}
 	bookDTO, err := h.service.GetBookByID(r.Context(), bookId)
 
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(pkg.ErrorHandler(err))
 		return
 	}
@@ -71,8 +71,8 @@ func (h *httpHandler) GetBookByID(w http.ResponseWriter, r *http.Request, params
 	body, err := json.Marshal(map[string]*dto.Book{"data": bookDTO})
 
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(pkg.ErrorHandler(err))
 		return
 	}
@@ -83,8 +83,8 @@ func (h *httpHandler) GetBookByID(w http.ResponseWriter, r *http.Request, params
 
 		body, err = json.Marshal(map[string]struct{}{"data": struct{}{}})
 		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "application/json")
 			w.Write(pkg.ErrorHandler(err))
 			return
 		}
@@ -92,8 +92,8 @@ func (h *httpHandler) GetBookByID(w http.ResponseWriter, r *http.Request, params
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(body)
 	return
 }

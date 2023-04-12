@@ -6,6 +6,7 @@ import (
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/service"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/transport/handler"
 	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/postgresql"
+	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/token_manager"
 	"github.com/joho/godotenv"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
@@ -47,11 +48,22 @@ func main() {
 		log.Fatalf("error occured db: %s", err.Error())
 	}
 
+	tokenTtl, err := time.ParseDuration(viper.GetString("token.ttl"))
+
+	if err != nil {
+		return
+	}
+
+	tokenManager := token_manager.NewTokenManager(os.Getenv("SIGNED_KEY"), tokenTtl)
+
 	// Entities
 	repository := repository.NewRepository(db)
 
 	// Use cases
-	service := service.NewService(repository)
+	service := service.NewService(
+		repository,
+		tokenManager,
+	)
 
 	// Gateway
 	handler := handler.NewHttpHandler(router, service)

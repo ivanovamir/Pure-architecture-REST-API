@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/dto"
 	"github.com/jmoiron/sqlx"
+	"time"
 )
 
 type userRepository struct {
@@ -45,7 +46,7 @@ func (r *userRepository) GetAllUsers(ctx context.Context) ([]*dto.User, error) {
 func (r *userRepository) GetUserByID(ctx context.Context, userId int) (*dto.User, error) {
 	var userDTO *dto.User
 
-	rows, err := r.db.QueryxContext(ctx, fmt.Sprintf(`
+	rows, err := r.db.QueryxContext(ctx, `
 		SELECT 
 		"user".id,
 		"user".name,
@@ -62,7 +63,7 @@ func (r *userRepository) GetUserByID(ctx context.Context, userId int) (*dto.User
 			INNER JOIN book b ON b.id = ub.book_id
 			INNER JOIN author a ON a.id = b.author_id
 			INNER JOIN genre g ON g.id = b.genre_id
-				WHERE "user".id = 1;`))
+				WHERE "user".id = $1;`, userId)
 
 	if err != nil {
 		return nil, fmt.Errorf("%s", errParsRows)
@@ -101,7 +102,7 @@ func (r *userRepository) GetUserByID(ctx context.Context, userId int) (*dto.User
 
 func (r *userRepository) TakeBook(ctx context.Context, bookId, userId int) error {
 
-	result, err := r.db.ExecContext(ctx, fmt.Sprintf(`INSERT INTO user_book VALUES (%d,%d)`, userId, bookId))
+	result, err := r.db.ExecContext(ctx, `INSERT INTO user_book VALUES ($1, $2)`, userId, bookId)
 	if err != nil {
 		return err
 	}
@@ -124,7 +125,7 @@ func (r *userRepository) CheckUserBook(ctx context.Context, bookId, userId int) 
 		BookId int
 	}
 
-	row := r.db.QueryRowxContext(ctx, fmt.Sprintf(`SELECT * FROM user_book where user_id = %d and book_id = %d`, userId, bookId))
+	row := r.db.QueryRowxContext(ctx, `SELECT * FROM user_book where user_id = $1 and book_id = $2`, userId, bookId)
 
 	if err := row.Scan(&userBook.UserId, &userBook.BookId); err != nil {
 		if err == sql.ErrNoRows {
@@ -132,4 +133,30 @@ func (r *userRepository) CheckUserBook(ctx context.Context, bookId, userId int) 
 		}
 	}
 	return true, fmt.Errorf("%s", errUserTookBook)
+}
+
+func (r *userRepository) RegisterUser(ctx context.Context, name string) (string, error) {
+	var userId int64
+
+	err := r.db.QueryRowContext(ctx, `INSERT INTO "user" (name, created_at) VALUES ($1, $2) RETURNING id`, name, time.Now()).Scan(&userId)
+
+	if err != nil {
+		return "", err
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprint(userId), nil
+}
+
+func (r *userRepository) WriteRefreshToken(ctx context.Context, refreshToken string, userId string) error {
+	_, err := r.db.ExecContext(ctx, `INSERT INTO token (refresh_token, user_id, created_at) VALUES ($1, $2, $3)`, refreshToken, userId, time.Now())
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
