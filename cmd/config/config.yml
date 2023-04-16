@@ -8,4 +8,9 @@
   "ssl_mode": "disable"
 
 "token":
-  "ttl": "1m"
+  "access_token_ttl": "1m"
+  "refresh_token_ttl": "131400m"
+
+"redis":
+  "address": "localhost:6379"
+  "token_db": "0"

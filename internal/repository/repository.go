@@ -3,14 +3,16 @@ package repository
 import (
 	"context"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/dto"
+	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/cache"
 	"github.com/jmoiron/sqlx"
+	"time"
 )
 
 const (
 	errScanRows     = "error occurred scanning rows"
 	errParsRows     = "error occurred parsing rows"
 	errScanRow      = "error occurred scanning single row"
-	errUserTookBook = "error occurred db: user have this book"
+	errUserTookBook = "error occurred db: user already have this book"
 )
 
 type Repository struct {
@@ -29,12 +31,13 @@ type User interface {
 	CheckUserBook(ctx context.Context, bookId, userId int) (bool, error)
 	TakeBook(ctx context.Context, bookId, userId int) error
 	RegisterUser(ctx context.Context, name string) (string, error)
-	WriteRefreshToken(ctx context.Context, refreshToken string, userId string) error
+	WriteRefreshToken(ctx context.Context, refreshToken string, userId string, ttl time.Duration) error
+	CheckRefreshToken(ctx context.Context, userId string) (string, error)
 }
 
-func NewRepository(db *sqlx.DB) *Repository {
+func NewRepository(db *sqlx.DB, cacheClient cache.Cache) *Repository {
 	return &Repository{
 		Book: NewbookRepository(db),
-		User: NewUserRepository(db),
+		User: NewUserRepository(db, cacheClient),
 	}
 }

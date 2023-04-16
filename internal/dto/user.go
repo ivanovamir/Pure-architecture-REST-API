@@ -8,10 +8,15 @@ type User struct {
 }
 
 type RegisterUser struct {
-	Name string `json:"name"`
+	Name string `json:"name" binding:"required"`
 }
 
 type SuccessRegister struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+}
+
+type UpdateTokens struct {
+	AccessToken  string `json:"access_token" binding:"required"`
+	RefreshToken string `json:"refresh_token" binding:"required"`
 }

@@ -22,9 +22,3 @@ CREATE TABLE "user"(
     name varchar(255),
     created_at timestamptz
 );
-CREATE TABLE "token"(
-    id SERIAL PRIMARY KEY,
-    refresh_token varchar(32),
-    user_id integer references "user"(id),
-    created_at timestamptz
-);

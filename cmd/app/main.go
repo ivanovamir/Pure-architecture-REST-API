@@ -5,6 +5,7 @@ import (
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/server"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/service"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/transport/handler"
+	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/cache"
 	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/postgresql"
 	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/token_manager"
 	"github.com/joho/godotenv"
@@ -48,21 +49,29 @@ func main() {
 		log.Fatalf("error occured db: %s", err.Error())
 	}
 
-	tokenTtl, err := time.ParseDuration(viper.GetString("token.ttl"))
+	accessTokenTtl, err := time.ParseDuration(viper.GetString("token.access_token_ttl"))
+	refreshTokenTtl, err := time.ParseDuration(viper.GetString("token.refresh_token_ttl"))
 
 	if err != nil {
 		return
 	}
 
-	tokenManager := token_manager.NewTokenManager(os.Getenv("SIGNED_KEY"), tokenTtl)
+	tokenManager := token_manager.NewTokenManager(os.Getenv("SIGNED_KEY"), accessTokenTtl)
+
+	cacheClient := cache.NewRedisClient(&cache.Config{
+		Address:  viper.GetString("redis.address"),
+		Password: os.Getenv("REDIS_DB_PASSWORD"),
+		DB:       viper.GetInt("redis.token_db"),
+	})
 
 	// Entities
-	repository := repository.NewRepository(db)
+	repository := repository.NewRepository(db, cacheClient)
 
 	// Use cases
 	service := service.NewService(
 		repository,
 		tokenManager,
+		refreshTokenTtl,
 	)
 
 	// Gateway

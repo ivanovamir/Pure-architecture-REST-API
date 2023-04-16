@@ -5,16 +5,21 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/dto"
+	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/cache"
 	"github.com/jmoiron/sqlx"
 	"time"
 )
 
 type userRepository struct {
-	db *sqlx.DB
+	db          *sqlx.DB
+	cacheClient cache.Cache
 }
 
-func NewUserRepository(db *sqlx.DB) *userRepository {
-	return &userRepository{db: db}
+func NewUserRepository(db *sqlx.DB, cacheClient cache.Cache) *userRepository {
+	return &userRepository{
+		db:          db,
+		cacheClient: cacheClient,
+	}
 }
 
 func (r *userRepository) GetAllUsers(ctx context.Context) ([]*dto.User, error) {
@@ -151,12 +156,17 @@ func (r *userRepository) RegisterUser(ctx context.Context, name string) (string,
 	return fmt.Sprint(userId), nil
 }
 
-func (r *userRepository) WriteRefreshToken(ctx context.Context, refreshToken string, userId string) error {
-	_, err := r.db.ExecContext(ctx, `INSERT INTO token (refresh_token, user_id, created_at) VALUES ($1, $2, $3)`, refreshToken, userId, time.Now())
-
-	if err != nil {
+func (r *userRepository) WriteRefreshToken(ctx context.Context, refreshToken string, userId string, ttl time.Duration) error {
+	if err := r.cacheClient.Set(ctx, userId, refreshToken, ttl); err != nil {
 		return err
 	}
-
 	return nil
+}
+
+func (r *userRepository) CheckRefreshToken(ctx context.Context, userId string) (string, error) {
+	refreshToken, err := r.cacheClient.Get(ctx, userId)
+	if err != nil {
+		return "", err
+	}
+	return refreshToken, nil
 }

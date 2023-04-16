@@ -13,6 +13,7 @@ If there is a need to use extremely precise and maximally unique values,
 
 Refresh token should preferably be stored in a Redis cache,
 with user id (uuid) as the key and refresh token itself as the value.
+
 */
 
 import (
@@ -44,7 +45,7 @@ func NewTokenManager(signingKey string, ttl time.Duration) TokenManager {
 func (t *tokenManager) NewJWT(userId string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
 		Subject:   userId,
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(t.ttl) * time.Hour)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(t.ttl)),
 	})
 
 	return token.SignedString([]byte(t.signingKey))
@@ -59,14 +60,19 @@ func (t *tokenManager) Parse(accessToken string) (string, error) {
 		return []byte(t.signingKey), nil
 	})
 
-	if err != nil {
-		return "", err
-	}
-
 	claims, ok := token.Claims.(jwt.MapClaims)
 
 	if !ok {
 		return "", fmt.Errorf("error occured getting user claims from token")
+	}
+
+	/* func return err with userId only when token is expired */
+	if err != nil {
+		if err.Error() == fmt.Sprintf("%s: %s", jwt.ErrTokenInvalidClaims, jwt.ErrTokenExpired) {
+			return claims["sub"].(string), err
+		} else {
+			return "", err
+		}
 	}
 
 	/* Get "sub" object from map of jwt payload */
