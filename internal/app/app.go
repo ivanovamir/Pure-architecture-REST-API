@@ -67,11 +67,11 @@ func Run() {
 		token_manager.WithTTL(accessTokenTtl),
 	)
 
-	cacheClient := cache.NewRedisClient(&cache.Config{
-		Address:  viper.GetString("redis.address"),
-		Password: os.Getenv("REDIS_DB_PASSWORD"),
-		DB:       viper.GetInt("redis.token_db"),
-	})
+	cacheClient := cache.NewRedisClient(
+		cache.WithAddress(viper.GetString("redis.address")),
+		cache.WithPassword(os.Getenv("REDIS_DB_PASSWORD")),
+		cache.WithDB(viper.GetInt("redis.token_db")),
+	)
 
 	// Entities
 	repository := repository.NewRepository(db, cacheClient)

@@ -17,7 +17,14 @@ type cache struct {
 	rdb *redis.Client
 }
 
-func NewRedisClient(cfg *Config) Cache {
+func NewRedisClient(option ...Option) Cache {
+
+	cfg := &Config{}
+
+	for _, opt := range option {
+		opt(cfg)
+	}
+
 	return &cache{
 		rdb: redis.NewClient(&redis.Options{
 			Addr:     cfg.Address,

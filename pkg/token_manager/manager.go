@@ -13,7 +13,6 @@ If there is a need to use extremely precise and maximally unique values,
 
 Refresh token should preferably be stored in a Redis cache,
 with user id (uuid) as the key and refresh token itself as the value.
-
 */
 
 import (
