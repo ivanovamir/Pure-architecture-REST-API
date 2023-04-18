@@ -35,11 +35,12 @@ type TokenManager interface {
 	NewRefreshToken() (string, error)
 }
 
-func NewTokenManager(signingKey string, ttl time.Duration) TokenManager {
-	return &tokenManager{
-		signingKey: signingKey,
-		ttl:        ttl,
+func NewTokenManager(option ...Option) TokenManager {
+	tm := &tokenManager{}
+	for _, opt := range option {
+		opt(tm)
 	}
+	return tm
 }
 
 func (t *tokenManager) NewJWT(userId string) (string, error) {

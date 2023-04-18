@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/repository"
@@ -18,7 +18,13 @@ import (
 	"time"
 )
 
-func main() {
+func initConfig() error {
+	viper.AddConfigPath("cmd/config")
+	viper.SetConfigName("config")
+	return viper.ReadInConfig()
+}
+
+func Run() {
 	if err := initConfig(); err != nil {
 		log.Fatalf("error occured load config file: %s", err.Error())
 	}
@@ -56,7 +62,10 @@ func main() {
 		return
 	}
 
-	tokenManager := token_manager.NewTokenManager(os.Getenv("SIGNED_KEY"), accessTokenTtl)
+	tokenManager := token_manager.NewTokenManager(
+		token_manager.WithSigningKey(os.Getenv("SIGNED_KEY")),
+		token_manager.WithTTL(accessTokenTtl),
+	)
 
 	cacheClient := cache.NewRedisClient(&cache.Config{
 		Address:  viper.GetString("redis.address"),
@@ -91,10 +100,4 @@ func main() {
 	if err = srv.Run(); err != nil {
 		log.Fatalf("error: %s", err.Error())
 	}
-}
-
-func initConfig() error {
-	viper.AddConfigPath("cmd/config")
-	viper.SetConfigName("config")
-	return viper.ReadInConfig()
 }

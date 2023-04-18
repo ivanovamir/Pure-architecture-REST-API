@@ -20,6 +20,8 @@ type Repository struct {
 	User
 }
 
+type Option func(r *Repository)
+
 type Book interface {
 	GetAllBooks(ctx context.Context) ([]*dto.Book, error)
 	GetBookByID(ctx context.Context, bookID int) (*dto.Book, error)
