@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/repository"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/server"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/service"
@@ -34,12 +35,6 @@ func Run() {
 	}
 
 	router := httprouter.New()
-
-	listener, err := net.Listen("tcp", ":8080")
-
-	if err != nil {
-		log.Fatalf("error: %s", err.Error())
-	}
 
 	//db config
 	db, err := postgresql.NewPostgresDB(&postgresql.Config{
@@ -88,6 +83,12 @@ func Run() {
 
 	// Register router
 	handler.Router()
+
+	listener, err := net.Listen(viper.GetString("server.port"), fmt.Sprintf(":%s", viper.GetString("server.port")))
+
+	if err != nil {
+		log.Fatalf("error: %s", err.Error())
+	}
 
 	// Config server
 	srv := server.NewServer(&http.Server{

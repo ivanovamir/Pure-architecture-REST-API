@@ -1,4 +1,6 @@
-"port": "8080"
+"server":
+  "con_type": "tcp"
+  "port": "8080"
 
 "db":
   "host": "localhost"
