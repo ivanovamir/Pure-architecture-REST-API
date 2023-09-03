@@ -1,82 +1,101 @@
 package token_manager
 
-/* This package is designed to work with JWT tokens. The structure of the package (tokenManager) includes:
-
-# type tokenManager struct {
-# 	signingKey string # unique secret signing key
-# 	ttl        time.Duration # Token time to live
-# }
-
-This package uses the "crypto/rand" package, it's better, than "math/rand", which is a pseudo-random generation.
-If there is a need to use extremely precise and maximally unique values,
-"crypto/rand" package should be used.
-
-Refresh token should preferably be stored in a Redis cache,
-with user id (uuid) as the key and refresh token itself as the value.
-*/
-
 import (
 	"crypto/rand"
+	"crypto/rsa"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
+	"io"
+	"os"
 	"time"
 )
 
+// eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTM3ODU5MDgsImlhdCI6MTY5Mzc2NDMwOCwidXNlcklkIjoiZTQwZDRiOGMtMjg0NC00MjBlLThkZmMtN2Q5YTVmNGZhOTEwIn0.GoTjcytjdOUfMxnsoh0FW4TTjbhWgssgrmsIsij5E8NTgVEPZSAHQgV9PjBRsV14PQouKK5gLF2E9cz-s0-flPFMx4ArTCONRBPARnHulevwnvh0jE5kREcxGxFhD4Gmctalb4Nq7FBKiITNqX99esw1h-dJoHo5iA382y81KeqKOo6Sa_MxCRgjnUdh5jZNqRENqdGn5H3HiPV-to7D087tuaibyT0GET2jbnH--qdP1f_ZLzj7Fw3sNyAVbaVQp0fNmXtbGnN807ACzaNKb64jhKcni6SBrs8LAhz6KD8hi4Y1MXhOUVsrmI_1JQozNu11PYJfv0oeZVjAqFJhdc6d4k3Xpe-4QD8htABk90dle3bpBC_m0uz0xSXVZr7U78I8d4n-L-P0fjjoUuluB9M9hJR56f9Qb2rgnt9kcL6KVPvuYsvqu-5MliXbPsRmUqUFLDyAindGb3MadKGwGkzctjjf_8FQpvmuPphXSJFR5LMpNYgtKFnL40AFgqBN
+
+type TokenConfig struct {
+	AccessTokenTtl  int    `yaml:"access_token_ttl"`
+	RefreshTokenTtl int    `yaml:"refresh_token_ttl"`
+	Issuer          string `yaml:"issuer"`
+	SigningKeyPath  string `env:"SIGNING_KEY_PATH"`
+	PrivateKey      *rsa.PrivateKey
+}
+
 type tokenManager struct {
-	signingKey string
-	ttl        time.Duration
+	cfg *TokenConfig
+}
+
+type TokenClaims struct {
+	jwt.RegisteredClaims
 }
 
 type TokenManager interface {
 	NewJWT(userId string) (string, error)
-	Parse(accessToken string) (string, error)
+	ValidateToken(accessToken string) (*TokenClaims, error)
 	NewRefreshToken() (string, error)
 }
 
-func NewTokenManager(option ...Option) TokenManager {
-	tm := &tokenManager{}
-	for _, opt := range option {
-		opt(tm)
+func NewTokenManager(cfg *TokenConfig) TokenManager {
+	f, err := os.Open(cfg.SigningKeyPath)
+
+	if err != nil {
+		panic(err)
 	}
-	return tm
+
+	defer f.Close()
+
+	key, err := io.ReadAll(f)
+
+	if err != nil {
+		panic(err)
+	}
+
+	cfg.PrivateKey, err = jwt.ParseRSAPrivateKeyFromPEM(key)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return &tokenManager{cfg: cfg}
 }
 
 func (t *tokenManager) NewJWT(userId string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+	token := jwt.NewWithClaims(jwt.SigningMethodPS512, jwt.RegisteredClaims{
+		Issuer:    "",
 		Subject:   userId,
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(t.ttl)),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * time.Duration(t.cfg.AccessTokenTtl))),
 	})
 
-	return token.SignedString([]byte(t.signingKey))
+	return token.SignedString(t.cfg.PrivateKey)
 }
 
-func (t *tokenManager) Parse(accessToken string) (string, error) {
-	token, err := jwt.Parse(accessToken, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("invalid signing method")
-		}
+func (t *tokenManager) ValidateToken(accessToken string) (*TokenClaims, error) {
+	token, err := jwt.ParseWithClaims(accessToken, TokenClaims{},
+		func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodRSAPSS); !ok {
+				return nil, fmt.Errorf("invalid signing method")
+			}
 
-		return []byte(t.signingKey), nil
-	})
+			return t.cfg.PrivateKey.PublicKey, nil
+		},
+		jwt.WithIssuer(t.cfg.Issuer),
+	)
 
-	claims, ok := token.Claims.(jwt.MapClaims)
+	if err != nil {
+		//TODO: handle error
+		return nil, err
+	}
+
+	claims, ok := token.Claims.(*TokenClaims)
 
 	if !ok {
-		return "", fmt.Errorf("error occured getting user claims from token")
+		//TODO: handle error
+		return nil, errors.New("error occurred casting token claims")
 	}
 
-	/* func return err with userId only when token is expired */
-	if err != nil {
-		if err.Error() == fmt.Sprintf("%s: %s", jwt.ErrTokenInvalidClaims, jwt.ErrTokenExpired) {
-			return claims["sub"].(string), err
-		} else {
-			return "", err
-		}
-	}
-
-	/* Get "sub" object from map of jwt payload */
-	return claims["sub"].(string), nil
+	return claims, nil
 }
 
 func (t *tokenManager) NewRefreshToken() (string, error) {

@@ -1,0 +1,36 @@
+app:
+  ver: 1.1
+
+server:
+  address: localhost
+  port: 8080
+  type: tcp
+  mode: 2 # 1 = release, 2 = debug
+
+logger:
+  path: logs/dev.log
+  level: 2 # 1 = release, 2 = debug
+
+postgres:
+  host: localhost
+  port: 5432
+  ssl_mode: disable
+  max_conn: 100
+  max_conn_attempts: 5
+  max_conn_delay: 5
+
+token:
+  access_token_ttl: 1 # minutes
+  refresh_token_ttl: 131400 # minutes
+  issuer: localhost:8080 # token ussuer
+
+password:
+  time_hash: 2
+  memory: 19456 # KiB
+  thread_count: 4
+  key_len: 32
+  salt_length: 20
+
+redis:
+  address: localhost:6379
+  token_db: 0

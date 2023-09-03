@@ -2,171 +2,57 @@ package repository
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
-	"github.com/ivanovamir/Pure-architecture-REST-API/internal/dto"
-	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/cache"
-	"github.com/jmoiron/sqlx"
-	"time"
+	"errors"
+	"github.com/ivanovamir/Pure-architecture-REST-API/internal/repository/dto"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type userRepository struct {
-	db          *sqlx.DB
-	cacheClient cache.Cache
+	db *pgxpool.Pool
 }
 
-func NewUserRepository(db *sqlx.DB, cacheClient cache.Cache) *userRepository {
+func NewUserRepository(db *pgxpool.Pool) User {
 	return &userRepository{
-		db:          db,
-		cacheClient: cacheClient,
+		db: db,
 	}
 }
 
-func (r *userRepository) GetAllUsers(ctx context.Context) ([]*dto.User, error) {
-	var usersDTO []*dto.User
-
-	rows, err := r.db.QueryxContext(ctx, fmt.Sprintf(`SELECT id, name, created_at FROM "user"`))
-
+func (r *userRepository) Create(ctx context.Context, userDto *dto.User) error {
+	q := `INSERT INTO "user" (name, surname, patronymic, password_hash) VALUES ($1, $2, $3, $4) RETURNING id`
+	err := r.db.QueryRow(ctx, q, userDto.Name, userDto.Surname, userDto.Patronymic, userDto.PasswordHash).Scan(&userDto.Id)
 	if err != nil {
-		return nil, fmt.Errorf("%s", errParsRows)
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		userDTO := &dto.User{}
-		if err := rows.Scan(
-			&userDTO.Id,
-			&userDTO.Name,
-			&userDTO.CreatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("%s", errScanRows)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrUserNotCreated
 		}
-		usersDTO = append(usersDTO, userDTO)
-	}
-
-	return usersDTO, nil
-}
-
-func (r *userRepository) GetUserByID(ctx context.Context, userId int) (*dto.User, error) {
-	var userDTO *dto.User
-
-	rows, err := r.db.QueryxContext(ctx, `
-		SELECT 
-		"user".id,
-		"user".name,
-		"user".created_at,
-		b.id,
-		b.title,
-		b.year as created_at,
-		g.id,
-		g.title,
-		a.id,
-		a.Name
-		FROM "user"
-			INNER JOIN user_book ub ON "user".id = ub.user_id
-			INNER JOIN book b ON b.id = ub.book_id
-			INNER JOIN author a ON a.id = b.author_id
-			INNER JOIN genre g ON g.id = b.genre_id
-				WHERE "user".id = $1;`, userId)
-
-	if err != nil {
-		return nil, fmt.Errorf("%s", errParsRows)
-	}
-
-	var userMap bool
-	var bookMap = map[string]struct{}{}
-
-	for rows.Next() {
-		userDTO := &dto.User{}
-		bookDTO := &dto.Book{}
-
-		err := rows.StructScan(&userDTO)
-		err = rows.StructScan(&userDTO)
-		err = rows.StructScan(&userDTO)
-		err = rows.StructScan(&userDTO)
-
-		if err != nil {
-			return nil, fmt.Errorf("%s", errScanRows)
-		}
-
-		if !userMap {
-			userDTO = userDTO
-			userMap = true
-		}
-
-		_, ok := bookMap[bookDTO.Id]
-
-		if !ok {
-			userDTO.Books = append(userDTO.Books, *bookDTO)
-		}
-	}
-	return userDTO, nil
-
-}
-
-func (r *userRepository) TakeBook(ctx context.Context, bookId, userId int) error {
-
-	result, err := r.db.ExecContext(ctx, `INSERT INTO user_book VALUES ($1, $2)`, userId, bookId)
-	if err != nil {
-		return err
-	}
-
-	rows, err := result.RowsAffected()
-
-	if err != nil {
-		return err
-	}
-
-	if rows != 1 {
 		return err
 	}
 	return nil
 }
 
-func (r *userRepository) CheckUserBook(ctx context.Context, bookId, userId int) (bool, error) {
-	var userBook struct {
-		UserId int
-		BookId int
-	}
+func (r *userRepository) Get(ctx context.Context, id int) (*dto.User, error) {
+	userDto := new(dto.User)
+	q := `SELECT u.id, u.name, u.surname, u.patronymic FROM "user" u WHERE u.id = $1`
 
-	row := r.db.QueryRowxContext(ctx, `SELECT * FROM user_book where user_id = $1 and book_id = $2`, userId, bookId)
-
-	if err := row.Scan(&userBook.UserId, &userBook.BookId); err != nil {
-		if err == sql.ErrNoRows {
-			return false, nil
+	err := r.db.QueryRow(ctx, q, id).Scan(&userDto.Id, &userDto.Name, &userDto.Surname, &userDto.Patronymic)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUserNotFound
 		}
+		return nil, err
 	}
-	return true, fmt.Errorf("%s", errUserTookBook)
+	return userDto, nil
 }
 
-func (r *userRepository) RegisterUser(ctx context.Context, name string) (string, error) {
-	var userId int64
+func (r *userRepository) IsExist(ctx context.Context, phone, email string) (bool, error) {
+	var isExist bool
+	q := `SELECT EXISTS(SELECT 1 FROM "user" u WHERE u.phone = $1 OR u.email = $2)`
 
-	err := r.db.QueryRowContext(ctx, `INSERT INTO "user" (name, created_at) VALUES ($1, $2) RETURNING id`, name, time.Now()).Scan(&userId)
+	err := r.db.QueryRow(ctx, q, phone, email).Scan(&isExist)
 
-	if err != nil {
-		return "", err
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return isExist, err
 	}
 
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprint(userId), nil
-}
-
-func (r *userRepository) WriteRefreshToken(ctx context.Context, refreshToken string, userId string, ttl time.Duration) error {
-	if err := r.cacheClient.Set(ctx, userId, refreshToken, ttl); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *userRepository) CheckRefreshToken(ctx context.Context, userId string) (string, error) {
-	refreshToken, err := r.cacheClient.Get(ctx, userId)
-	if err != nil {
-		return "", err
-	}
-	return refreshToken, nil
+	return isExist, nil
 }

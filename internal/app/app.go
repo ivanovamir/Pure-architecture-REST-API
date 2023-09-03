@@ -1,104 +1,88 @@
 package app
 
 import (
+	"context"
 	"fmt"
+	"github.com/ivanovamir/Pure-architecture-REST-API/internal/config"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/repository"
-	"github.com/ivanovamir/Pure-architecture-REST-API/internal/server"
 	"github.com/ivanovamir/Pure-architecture-REST-API/internal/service"
-	"github.com/ivanovamir/Pure-architecture-REST-API/internal/transport/handler"
-	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/cache"
+	"github.com/ivanovamir/Pure-architecture-REST-API/internal/transport/http/handler"
+	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/logger"
+	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/password_manager"
 	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/postgresql"
-	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/token_manager"
-	"github.com/joho/godotenv"
+	"github.com/ivanovamir/Pure-architecture-REST-API/pkg/server"
 	"github.com/julienschmidt/httprouter"
-	"github.com/spf13/viper"
 	"log"
 	"net"
 	"net/http"
-	"os"
-	"time"
 )
 
-func initConfig() error {
-	viper.AddConfigPath("cmd/config")
-	viper.SetConfigName("config")
-	return viper.ReadInConfig()
-}
-
 func Run() {
-	if err := initConfig(); err != nil {
-		log.Fatalf("error occured load config file: %s", err.Error())
-	}
+	cfg := config.NewConfig()
 
-	if err := godotenv.Load(".env"); err != nil {
-		log.Fatalf("error occured load .env file: %s", err.Error())
-	}
-
-	router := httprouter.New()
-
-	//db config
-	db, err := postgresql.NewPostgresDB(&postgresql.Config{
-		Host:     viper.GetString("db.host"),
-		Port:     viper.GetString("db.port"),
-		Username: viper.GetString("db.username"),
-		Password: os.Getenv("DB_PASSWORD"),
-		DBName:   viper.GetString("db.db_name"),
-		SslMode:  viper.GetString("db.ssl_mode"),
-	})
-
-	if err != nil {
-		log.Fatalf("error occured db: %s", err.Error())
-	}
-
-	accessTokenTtl, err := time.ParseDuration(viper.GetString("token.access_token_ttl"))
-	refreshTokenTtl, err := time.ParseDuration(viper.GetString("token.refresh_token_ttl"))
-
-	if err != nil {
+	if cfg == nil {
+		// TODO error handler
+		log.Println("error occurred loading config")
 		return
 	}
 
-	tokenManager := token_manager.NewTokenManager(
-		token_manager.WithSigningKey(os.Getenv("SIGNED_KEY")),
-		token_manager.WithTTL(accessTokenTtl),
-	)
+	lg := logger.NewLogger(logger.WithCfg(&cfg.LoggerConfig), logger.WithAppVersion(cfg.AppVersion.AppVersion))
 
-	cacheClient := cache.NewRedisClient(
-		cache.WithAddress(viper.GetString("redis.address")),
-		cache.WithPassword(os.Getenv("REDIS_DB_PASSWORD")),
-		cache.WithDB(viper.GetInt("redis.token_db")),
-	)
+	if lg == nil {
+		// TODO error handler
+		log.Println("error occurred loading logger")
+		return
+	}
 
-	// Entities
-	repository := repository.NewRepository(db, cacheClient)
-
-	// Use cases
-	service := service.NewService(
-		repository,
-		tokenManager,
-		refreshTokenTtl,
-	)
-
-	// Gateway
-	handler := handler.NewHttpHandler(router, service)
-
-	// Register router
-	handler.Router()
-
-	listener, err := net.Listen(viper.GetString("server.port"), fmt.Sprintf(":%s", viper.GetString("server.port")))
+	//db config
+	db, err := postgresql.NewPostgresDB(context.Background(), &cfg.PostgresDBConfig)
 
 	if err != nil {
-		log.Fatalf("error: %s", err.Error())
+		// TODO error handler
+		log.Println("error occurred connection to postgresql")
+		return
 	}
 
-	// Config server
-	srv := server.NewServer(&http.Server{
-		Handler:      router,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
-	}, listener)
+	defer db.Close()
 
-	// Run server
-	if err = srv.Run(); err != nil {
-		log.Fatalf("error: %s", err.Error())
+	passwordManager := password_manager.NewPasswordManager(&cfg.PasswordManagerConfig)
+
+	//tokenManager := token_manager.NewTokenManager(&cfg.TokenConfig)
+
+	httpMx := httprouter.New()
+
+	repo := repository.NewRepository(db)
+
+	service := service.NewService(lg, repo, passwordManager)
+
+	httpHandler := handler.NewHttpHandler(httpMx, service)
+
+	httpHandler.Router()
+
+	ln, err := net.Listen(cfg.HandlerConfig.ListenType, fmt.Sprintf("%s:%s", cfg.HandlerConfig.ListenAddr, cfg.HandlerConfig.ListenPort))
+
+	if err != nil {
+		lg.Error(err.Error())
+		return
 	}
+
+	srv := server.NewServer(
+		server.WithSrv(&http.Server{
+			Addr:    fmt.Sprintf(":%s", cfg.HandlerConfig.ListenPort),
+			Handler: httpMx,
+		}),
+		server.WithListener(&ln),
+	)
+
+	quiteCh := make(chan struct{})
+	go func() {
+		if err = srv.Run(); err != nil {
+			//TODO: handle error
+			lg.Error(err.Error())
+			quiteCh <- struct{}{}
+			return
+		}
+	}()
+
+	<-quiteCh
 }
